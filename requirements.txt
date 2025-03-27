@@ -1,5 +1,4 @@
 mido
-ultralytics
-gradio
-opencv-python
 numpy
+python-rtmidi
+ultralytics
