@@ -3,8 +3,6 @@ import numpy as np
 import argparse
 import time
 import colorsys
-os.add_dll_directory(r'C:\Users\Ruben\Documents\opencv\build\x64\vc16\bin')
-
 from ultralytics import YOLO
 import cv2
 import math
