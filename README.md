@@ -1,7 +1,7 @@
 # SoundsOfYOLO
 
 A real-time audio-visual system that translates computer vision into music by connecting object detection with MIDI.
-This project was made for the "Coupe de France de Robotique Junior" 2025
+This project was made for a conference at the "Coupe de France de Robotique Junior" 2025
 
 ## What is SoundsOfYOLO?
 
