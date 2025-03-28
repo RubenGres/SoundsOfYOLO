@@ -18,52 +18,53 @@ allowed_classes = ["backpack", "umbrella", "suitcase", "sports ball",
 # Function to calculate MIDI note values for each class
 def calculate_note(class_name):
     name_to_note = {
-        "backpack": 60,
-        "umbrella": 60,
-        "suitcase": 60,
-        "sports ball": 60,
-        "skateboard": 60,
-        "bottle": 60,
-        "cup": 60,
-        "fork": 60,
-        "knife": 60,
-        "spoon": 60,
-        "bowl": 60,
-        "banana": 60,
-        "apple": 60,
-        "orange": 60,
-        "carrot": 60,
-        "bottle": 60,
-        "pottedplant": 60,
-        "remote": 60,
-        "cell phone": 60,
-        "book": 60,
-        "teddy bear": 60,
-        "toothbrush": 60
+        "backpack": 34,
+        "umbrella": 34,
+        "suitcase": 34,
+        "sports ball": 34,
+        "skateboard": 34,
+        "bottle": 34,
+        "cup": 34,
+        "fork": 34,
+        "knife": 34,
+        "spoon": 34,
+        "bowl": 34,
+        "banana": 34,
+        "apple": 34,
+        "orange": 34,
+        "carrot": 34,
+        "bottle": 34,
+        "pottedplant": 34,
+        "remote": 34,
+        "cell phone": 34,
+        "book": 34,
+        "teddy bear": 34,
+        "toothbrush": 34
     }
 
     return name_to_note[class_name]
 
-# Map class names to CC control channels for X and Y positions
+# Map class names to CC control channels for X and Y positions and size
 def get_control_channels(class_name):
     # Calculate control channels dynamically based on index position in allowed_classes
-    # Each class gets two control channels: one for X position, one for Y
-    # Start control channels at 1 and 2 for the first class, 3 and 4 for the second, etc.
+    # Each class gets three control channels: X position, Y position, and Size
+    # Start control channels at 1, 2, 3 for the first class, 4, 5, 6 for the second, etc.
     
     if class_name not in allowed_classes:
         # Fallback for safety, though this shouldn't happen due to filtering
         print(f"Warning: {class_name} not in allowed classes list")
-        return (1, 2)
+        return (1, 2, 3)
         
     # Find the index of the class in the allowed_classes list
     class_index = allowed_classes.index(class_name)
     
     # Calculate control channels: 
-    # First class gets CC 1,2; second gets 3,4; etc.
-    x_cc = class_index * 2 + 1
-    y_cc = class_index * 2 + 2
+    # First class gets CC 1,2,3; second gets 4,5,6; etc.
+    x_cc = class_index * 3 + 1
+    y_cc = class_index * 3 + 2
+    size_cc = class_index * 3 + 3
     
-    return (x_cc, y_cc)
+    return (x_cc, y_cc, size_cc)
 
 # Object classes
 classNames = ["person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
@@ -84,6 +85,9 @@ def parse_arguments():
     parser.add_argument('--camera', type=int, help='Camera device index')
     parser.add_argument('--midi', type=int, help='MIDI output port index')
     parser.add_argument('--fullscreen', action='store_true', help='Start in fullscreen mode')
+    parser.add_argument('--width', type=int, default=1280, help='Initial window width (default: 1280)')
+    parser.add_argument('--height', type=int, default=720, help='Initial camera height (default: 720)')
+    parser.add_argument('--persistence', type=int, default=3, help='Number of frames to keep a detection alive (default: 3)')
     return parser.parse_args()
 
 # Generate unique colors for each class
@@ -169,15 +173,22 @@ def select_midi_port(port_idx=None):
         except ValueError:
             print("Please enter a valid number")
 
-def calculate_velocity(box_area, image_area):
-    # Calculate velocity based on the box size relative to the image
-    # Minimum velocity is 40, maximum is 127 (MIDI velocity range is 0-127)
+def calculate_size_cc_value(box_area, image_area):
+    # Convert box area to a MIDI CC value (0-127)
+    # Small objects will have low values, large objects will have high values
     percentage = (box_area / image_area) * 100
     
-    # Scale percentage to MIDI velocity (40-127)
-    velocity = int(40 + (percentage * 0.87))
-    # Ensure velocity is within MIDI range
-    return max(40, min(127, velocity))
+    # Scale percentage to MIDI CC value (0-127)
+    # Apply a curve to make small changes more noticeable
+    # Use a logarithmic scale to give more resolution to smaller objects
+    if percentage > 0:
+        # Log scale gives better resolution for small objects
+        # Map from roughly 0.01% to 50% of screen area
+        value = int(min(127, max(0, 42.5 * math.log10(percentage * 2 + 1))))
+    else:
+        value = 0
+        
+    return value
 
 def calculate_position_cc_values(x_center, y_center, img_width, img_height):
     # Convert x, y coordinates to MIDI CC values (0-127)
@@ -210,13 +221,18 @@ def main():
     
     # Start webcam
     cap = cv2.VideoCapture(camera_idx)
-    cap.set(3, 640)
-    cap.set(4, 480)
     
-    # Get frame dimensions for area calculations
-    image_width = int(cap.get(3))
-    image_height = int(cap.get(4))
+    # Try to get the highest resolution supported by the camera
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    
+    # Get actual frame dimensions for area calculations
+    image_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    image_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     image_area = image_width * image_height
+    aspect_ratio = image_width / image_height
+    
+    print(f"Camera resolution: {image_width}x{image_height}, Aspect ratio: {aspect_ratio:.2f}")
     
     # Model
     model = YOLO("yolo-Weights/yolov8n.pt")
@@ -227,11 +243,25 @@ def main():
     # Store previously detected classes to track when objects appear/disappear
     prev_detected_classes = set()
     
+    # Detection persistence tracker
+    # Dictionary to keep track of how many frames each object has been missing
+    # Key: class_name, Value: count of frames since last detection
+    missing_frames = {}
+    
+    # Persistence threshold - number of frames to wait before sending note_off
+    persistence_frames = args.persistence
+    print(f"Detection persistence: {persistence_frames} frames")
+    
     # Window name
     window_name = f'YOLO Detection with MIDI (Camera {camera_idx})'
     
-    # Create window
+    # Create window with aspect ratio preservation
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+    
+    # Set initial window size with proper aspect ratio
+    initial_width = 1280
+    initial_height = int(initial_width / aspect_ratio)
+    cv2.resizeWindow(window_name, initial_width, initial_height)
     
     # If fullscreen flag is set, enable fullscreen
     if args.fullscreen:
@@ -278,24 +308,28 @@ def main():
                     
                     # Calculate MIDI parameters
                     note = calculate_note(class_name)
-                    velocity = calculate_velocity(box_area, image_area)
                     
                     # Get control channels for this class
-                    x_cc, y_cc = get_control_channels(class_name)
+                    x_cc, y_cc, size_cc = get_control_channels(class_name)
                     
-                    # Calculate CC values for x and y positions
+                    # Calculate CC values for x, y positions and size
                     x_pos_value, y_pos_value = calculate_position_cc_values(
                         x_center, y_center, image_width, image_height
                     )
+                    size_value = calculate_size_cc_value(box_area, image_area)
                     
-                    port.send(Message('note_on', note=note, velocity=velocity))
-                    # if class_name not in prev_detected_classes:
-                    #     print(f"MIDI Note ON: Class={class_name}, Note={note}, Velocity={velocity}")
+                    # Send MIDI note_on message for newly detected objects
+                    # Only send note_on once when the object first appears
+                    if class_name not in prev_detected_classes:
+                        # Use a fixed velocity for note_on - we'll use CC for size instead
+                        port.send(Message('note_on', note=note, velocity=100))
+                        print(f"MIDI Note ON: Class={class_name}, Note={note}")
                     
-                    # Send CC messages for X and Y positions
+                    # Send CC messages for X and Y positions and size
                     port.send(Message('control_change', control=x_cc, value=x_pos_value))
                     port.send(Message('control_change', control=y_cc, value=y_pos_value))
-                    print(f"MIDI CC: Class={class_name}, X(CC{x_cc})={x_pos_value}, Y(CC{y_cc})={y_pos_value}")
+                    port.send(Message('control_change', control=size_cc, value=size_value))
+                    print(f"MIDI CC: Class={class_name}, X(CC{x_cc})={x_pos_value}, Y(CC{y_cc})={y_pos_value}, Size(CC{size_cc})={size_value}")
                     
                     # Confidence
                     confidence = math.ceil((box.conf[0]*100))/100
@@ -310,8 +344,8 @@ def main():
                     cv2.circle(img, (x_center, y_center), 5, (0, 255, 0), -1)
                     
                     # Create label with class name, confidence and MIDI info
-                    label = f"{class_name}: {confidence:.2f} | Note: {note}, Vel: {velocity}"
-                    pos_label = f"X: {x_pos_value}(CC{x_cc}), Y: {y_pos_value}(CC{y_cc})"
+                    label = f"{class_name}: {confidence:.2f} | Note: {note}"
+                    pos_label = f"X: {x_pos_value}(CC{x_cc}), Y: {y_pos_value}(CC{y_cc}), Size: {size_value}(CC{size_cc})"
                     
                     # Calculate text size for better positioning
                     (text_width, text_height), baseline = cv2.getTextSize(
@@ -364,16 +398,63 @@ def main():
                         cv2.LINE_AA
                     )
             
-            # Send MIDI note_off for objects that disappeared
-            for class_name in prev_detected_classes - current_detected_classes:
-                note = calculate_note(class_name)
-                port.send(Message('note_off', note=note, velocity=0))
-                print(f"MIDI Note OFF: Class={class_name}, Note={note}")
+            # Update all currently detected classes to have 0 missing frames
+            for class_name in current_detected_classes:
+                missing_frames[class_name] = 0
             
-            # Update previous detections
-            prev_detected_classes = current_detected_classes
+            # Handle objects that disappeared
+            # Instead of immediately sending note_off, increment missing frame count
+            classes_to_remove = []
             
-            # Show frame
+            for class_name in prev_detected_classes:
+                if class_name not in current_detected_classes:
+                    # Increment missing frames counter
+                    missing_frames[class_name] = missing_frames.get(class_name, 0) + 1
+                    
+                    # If object has been missing for more than persistence_frames, remove it
+                    if missing_frames[class_name] >= persistence_frames:
+                        # Send note_off
+                        note = calculate_note(class_name)
+                        port.send(Message('note_off', note=note, velocity=0))
+                        print(f"MIDI Note OFF: Class={class_name}, Note={note} (after {persistence_frames} missing frames)")
+                        
+                        # Mark for removal from prev_detected_classes
+                        classes_to_remove.append(class_name)
+                    else:
+                        # Object is temporarily missing but still within persistence threshold
+                        # Show in UI that the object is being kept alive
+                        print(f"Keeping {class_name} alive: missing for {missing_frames[class_name]} frames")
+            
+            # Remove classes that have been missing for too long
+            for class_name in classes_to_remove:
+                prev_detected_classes.remove(class_name)
+                # Also remove from missing_frames tracker
+                if class_name in missing_frames:
+                    del missing_frames[class_name]
+            
+            # Update previous detections with current detections
+            prev_detected_classes.update(current_detected_classes)
+            
+            # Draw status of all tracked objects (including those being kept alive)
+            status_y = 30
+            cv2.putText(img, "Tracked Objects:", (10, status_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+            status_y += 25
+            
+            for idx, class_name in enumerate(sorted(prev_detected_classes)):
+                missing_count = missing_frames.get(class_name, 0)
+                if missing_count > 0:
+                    # Yellow text for objects being kept alive but not currently detected
+                    status_color = (0, 255, 255)
+                    status_text = f"{class_name}: Keeping alive ({missing_count}/{persistence_frames})"
+                else:
+                    # Green text for actively detected objects
+                    status_color = (0, 255, 0)
+                    status_text = f"{class_name}: Active"
+                
+                cv2.putText(img, status_text, (10, status_y + idx * 25), cv2.FONT_HERSHEY_SIMPLEX, 
+                            0.6, status_color, 2)
+            
+            # Show frame (maintain aspect ratio)
             cv2.imshow(window_name, img)
             
             # Check for keypresses
@@ -383,9 +464,19 @@ def main():
             elif key == ord('f'):  # Toggle fullscreen on 'f' key
                 is_fullscreen = not is_fullscreen
                 if is_fullscreen:
+                    # Save current screen dimensions to calculate proper fullscreen size
+                    screen_w = cv2.getWindowImageRect(window_name)[2]
+                    screen_h = cv2.getWindowImageRect(window_name)[3]
+                    
+                    # Set to fullscreen while maintaining aspect ratio
                     cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
                 else:
+                    # Return to normal window with proper aspect ratio
                     cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+                    # Reset window size with proper aspect ratio
+                    resized_width = 1280
+                    resized_height = int(resized_width / aspect_ratio)
+                    cv2.resizeWindow(window_name, resized_width, resized_height)
     
     except KeyboardInterrupt:
         print("\nStopping detection and MIDI output")
