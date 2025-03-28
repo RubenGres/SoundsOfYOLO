@@ -18,28 +18,28 @@ allowed_classes = ["backpack", "umbrella", "suitcase", "sports ball",
 # Function to calculate MIDI note values for each class
 def calculate_note(class_name):
     name_to_note = {
-        "backpack": 34,
-        "umbrella": 34,
-        "suitcase": 34,
-        "sports ball": 34,
-        "skateboard": 34,
-        "bottle": 34,
-        "cup": 34,
-        "fork": 34,
-        "knife": 34,
-        "spoon": 34,
-        "bowl": 34,
-        "banana": 34,
-        "apple": 34,
-        "orange": 34,
-        "carrot": 34,
-        "bottle": 34,
-        "pottedplant": 34,
-        "remote": 34,
-        "cell phone": 34,
-        "book": 34,
-        "teddy bear": 34,
-        "toothbrush": 34
+        "backpack": 60,
+        "umbrella": 60,
+        "suitcase": 60,
+        "sports ball": 60,
+        "skateboard": 60,
+        "bottle": 60,
+        "cup": 60,
+        "fork": 60,
+        "knife": 60,
+        "spoon": 60,
+        "bowl": 60,
+        "banana": 60,
+        "apple": 60,
+        "orange": 60,
+        "carrot": 60,
+        "bottle": 60,
+        "pottedplant": 60,
+        "remote": 60,
+        "cell phone": 60,
+        "book": 60,
+        "teddy bear": 60,
+        "toothbrush": 60
     }
 
     return name_to_note[class_name]
@@ -288,10 +288,9 @@ def main():
                         x_center, y_center, image_width, image_height
                     )
                     
-                    # Send MIDI note_on message for newly detected objects
-                    if class_name not in prev_detected_classes:
-                        port.send(Message('note_on', note=note, velocity=velocity))
-                        print(f"MIDI Note ON: Class={class_name}, Note={note}, Velocity={velocity}")
+                    port.send(Message('note_on', note=note, velocity=velocity))
+                    # if class_name not in prev_detected_classes:
+                    #     print(f"MIDI Note ON: Class={class_name}, Note={note}, Velocity={velocity}")
                     
                     # Send CC messages for X and Y positions
                     port.send(Message('control_change', control=x_cc, value=x_pos_value))
