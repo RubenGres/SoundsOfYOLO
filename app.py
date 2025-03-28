@@ -10,36 +10,20 @@ import mido
 from mido import Message
 
 
-allowed_classes = ["backpack", "umbrella", "suitcase", "sports ball",
-                "skateboard", "bottle", "cup", "fork", "knife", "spoon",
-                "bowl", "banana", "apple", "orange", "carrot", "bottle",
-                "pottedplant", "remote", "cell phone", "book", "teddy bear", "toothbrush"]
+allowed_classes = ["teddy bear", "bottle", "bowl", "cup"]
+
+# "backpack", "umbrella", "suitcase", "sports ball",
+# "skateboard", "bottle", "cup", "fork", "knife", "spoon",
+# "bowl", "banana", "apple", "orange", "carrot", "bottle",
+# "pottedplant"
 
 # Function to calculate MIDI note values for each class
 def calculate_note(class_name):
     name_to_note = {
-        "backpack": 34,
-        "umbrella": 34,
-        "suitcase": 34,
-        "sports ball": 34,
-        "skateboard": 34,
-        "bottle": 34,
-        "cup": 34,
-        "fork": 34,
-        "knife": 34,
-        "spoon": 34,
-        "bowl": 34,
-        "banana": 34,
-        "apple": 34,
-        "orange": 34,
-        "carrot": 34,
-        "bottle": 34,
-        "pottedplant": 34,
-        "remote": 34,
-        "cell phone": 34,
-        "book": 34,
-        "teddy bear": 34,
-        "toothbrush": 34
+        "cup": 60,
+        "bowl": 62,
+        "bottle": 64,
+        "teddy bear": 65,
     }
 
     return name_to_note[class_name]
