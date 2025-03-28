@@ -9,6 +9,54 @@ import math
 import mido
 from mido import Message
 
+
+allowed_classes = ["backpack", "umbrella", "suitcase", "sports ball",
+                "skateboard", "bottle", "cup", "fork", "knife", "spoon",
+                "bowl", "banana", "apple", "orange", "carrot", "bottle",
+                "pottedplant", "remote", "cell phone", "book", "teddy bear", "toothbrush"]
+
+def calculate_note(class_name):
+    name_to_note = {
+        "backpack": 20,
+        "umbrella": 20,
+        "suitcase": 20,
+        "sports ball": 20,
+        "skateboard": 20,
+        "bottle": 20,
+        "cup": 20,
+        "fork": 20,
+        "knife": 20,
+        "spoon": 20,
+        "bowl": 20,
+        "banana": 20,
+        "apple": 20,
+        "orange": 20,
+        "carrot": 20,
+        "bottle": 20,
+        "pottedplant": 20,
+        "remote": 20,
+        "cell phone": 20,
+        "book": 20,
+        "teddy bear": 20,
+        "toothbrush": 20
+    }
+
+    return name_to_note[class_name]
+
+# Object classes
+classNames = ["person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
+            "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
+            "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella",
+            "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat",
+            "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup",
+            "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli",
+            "carrot", "hot dog", "pizza", "donut", "cake", "chair", "sofa", "pottedplant", "bed",
+            "diningtable", "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard", "cell phone",
+            "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors",
+            "teddy bear", "hair drier", "toothbrush"
+            ]
+
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description='YOLO Object Detection with MIDI Output')
     parser.add_argument('--camera', type=int, help='Camera device index')
@@ -98,22 +146,6 @@ def select_midi_port(port_idx=None):
         except ValueError:
             print("Please enter a valid number")
 
-def calculate_note(cls_index, num_classes):
-    # Map class indices to MIDI notes (keeping within reasonable MIDI note range)
-    # Using C3 (60) to C5 (84) range, distributed across classes
-    min_note = 36  # C2
-    max_note = 96  # C7
-    
-    # If we have more classes than notes, we'll reuse some notes
-    note_range = max_note - min_note
-    
-    if num_classes <= note_range:
-        # Evenly distribute classes across the note range
-        return min_note + int((cls_index / num_classes) * note_range)
-    else:
-        # If we have more classes than notes, we'll map multiple classes to the same note
-        return min_note + (cls_index % note_range)
-
 def calculate_velocity(box_area, image_area):
     # Calculate velocity based on the box size relative to the image
     # Minimum velocity is 40, maximum is 127 (MIDI velocity range is 0-127)
@@ -154,19 +186,7 @@ def main():
     
     # Model
     model = YOLO("yolo-Weights/yolov8n.pt")
-    
-    # Object classes
-    classNames = ["person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck", "boat",
-                "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
-                "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella",
-                "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat",
-                "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup",
-                "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli",
-                "carrot", "hot dog", "pizza", "donut", "cake", "chair", "sofa", "pottedplant", "bed",
-                "diningtable", "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard", "cell phone",
-                "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors",
-                "teddy bear", "hair drier", "toothbrush"
-                ]
+
     
     # Generate unique colors for each class
     class_colors = generate_unique_colors(len(classNames))
@@ -204,10 +224,15 @@ def main():
                     # Class name
                     cls = int(box.cls[0])
                     class_name = classNames[cls]
+
+                    #Only accept the allowed classes
+                    if class_name not in allowed_classes:
+                        continue
+
                     current_detected_classes.add(cls)
                     
                     # Calculate MIDI parameters
-                    note = calculate_note(cls, len(classNames))
+                    note = calculate_note(class_name)
                     velocity = calculate_velocity(box_area, image_area)
                     
                     # Send MIDI note_on message for newly detected objects
@@ -255,7 +280,7 @@ def main():
             
             # Send MIDI note_off for objects that disappeared
             for cls in prev_detected_classes - current_detected_classes:
-                note = calculate_note(cls, len(classNames))
+                note = calculate_note(classNames[cls])
                 port.send(Message('note_off', note=note, velocity=0))
                 print(f"MIDI Note OFF: Class={classNames[cls]}, Note={note}")
             
@@ -274,7 +299,7 @@ def main():
     finally:
         # Turn off any remaining notes
         for cls in prev_detected_classes:
-            note = calculate_note(cls, len(classNames))
+            note = calculate_note(classNames[cls])
             port.send(Message('note_off', note=note, velocity=0))
         
         # Close resources
