@@ -10,20 +10,19 @@ import mido
 from mido import Message
 
 
-allowed_classes = ["teddy bear", "bottle", "bowl", "cup"]
+allowed_classes = ["banana", "orange", "carrot"]
 
 # "backpack", "umbrella", "suitcase", "sports ball",
-# "skateboard", "bottle", "cup", "fork", "knife", "spoon",
+# "skateboard", "bottle", "fork", "knife", "spoon",
 # "bowl", "banana", "apple", "orange", "carrot", "bottle",
 # "pottedplant"
 
 # Function to calculate MIDI note values for each class
 def calculate_note(class_name):
     name_to_note = {
-        "cup": 60,
-        "bowl": 62,
-        "bottle": 64,
-        "teddy bear": 65,
+        "banana": 60,
+        "orange": 62,
+        "carrot": 64
     }
 
     return name_to_note[class_name]
@@ -219,7 +218,7 @@ def main():
     print(f"Camera resolution: {image_width}x{image_height}, Aspect ratio: {aspect_ratio:.2f}")
     
     # Model
-    model = YOLO("yolo-Weights/yolov8n.pt")
+    model = YOLO("yolo-Weights/yolov8m.pt")
     
     # Generate unique colors for each class
     class_colors = generate_unique_colors(len(classNames))
