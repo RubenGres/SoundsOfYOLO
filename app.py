@@ -10,7 +10,7 @@ import mido
 from mido import Message
 
 
-allowed_classes = ["banana", "orange", "carrot"]
+allowed_classes = ["banana", "teddy bear", "orange"]
 
 # "backpack", "umbrella", "suitcase", "sports ball",
 # "skateboard", "bottle", "fork", "knife", "spoon",
@@ -21,8 +21,8 @@ allowed_classes = ["banana", "orange", "carrot"]
 def calculate_note(class_name):
     name_to_note = {
         "banana": 60,
-        "orange": 62,
-        "carrot": 64
+        "teddy bear": 62,
+        "orange": 64
     }
 
     return name_to_note[class_name]
@@ -218,7 +218,7 @@ def main():
     print(f"Camera resolution: {image_width}x{image_height}, Aspect ratio: {aspect_ratio:.2f}")
     
     # Model
-    model = YOLO("yolo-Weights/yolov8m.pt")
+    model = YOLO("yolo-Weights/yolov8s.pt")
     
     # Generate unique colors for each class
     class_colors = generate_unique_colors(len(classNames))
