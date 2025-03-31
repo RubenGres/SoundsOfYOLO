@@ -1,18 +1,13 @@
 # SoundsOfYOLO
 
 A real-time audio-visual system that translates computer vision into music by connecting object detection with MIDI.
+SoundsOfYOLO bridges the gap between computer vision and music, turning your physical environment into a musical instrument.
+
 This project was made for a conference at the "Coupe de France de Robotique Junior" 2025
 
 ## What is SoundsOfYOLO?
 
 SoundsOfYOLO creates an interactive sonic environment that responds to objects detected by your webcam. The system uses YOLO (You Only Look Once) computer vision to identify objects in real-time, then converts these detections into MIDI signals that can control music software like Ableton Live or any MIDI-compatible synthesizer.
-
-### Key Features:
-
-- **Visual → Sound Translation**: Each detected object class (person, car, cup, etc.) triggers a unique MIDI note
-- **Dynamic Expressivity**: The size of detected objects controls MIDI velocity, creating volume dynamics
-- **Multi-Device Support**: Select from multiple cameras and MIDI output ports
-- **Visual Feedback**: Color-coded detection display shows what objects are being tracked and what sounds they're creating
 
 ## Installation
 
@@ -49,5 +44,4 @@ You can now connect your virtual midi channel to anything you want, https://sign
 ### Controls
 - Press 'q' to quit the application
 - Press Ctrl+C in the terminal to stop the program
-
-SoundsOfYOLO bridges the gap between computer vision and music, turning your physical environment into a musical instrument.
+- 
